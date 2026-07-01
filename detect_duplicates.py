@@ -144,6 +144,15 @@ def find_duplicates(questions, threshold=THRESHOLD):
             #    word order is scrambled but the right tokens are all present
             both_moderate = sort_score >= (threshold - 13) and set_score >= (threshold - 1)
             if sort_score >= threshold or set_score >= (threshold + 5) or both_moderate:
+                # Veto: same structure but different physics values = different question
+                # e.g. "car at 20 km/h" vs "car at 40 km/h" → skip even if 90%+ similar
+                # Uses subset check (not equality) to tolerate PDF extraction artifacts
+                nums_i = extract_stem_numbers(questions[qi]['text'])
+                nums_j = extract_stem_numbers(questions[qj]['text'])
+                if (nums_i and nums_j and
+                        not nums_i.issubset(nums_j) and
+                        not nums_j.issubset(nums_i)):
+                    continue
                 pairs.append((qi, qj, score, 'Near-Exact'))
             checked += 1
 
@@ -202,6 +211,14 @@ FIGURE_RE = re.compile(
 )
 
 MATCH_LIST_RE = re.compile(r'\bmatch\s+(list|column)', re.IGNORECASE)
+
+
+def extract_stem_numbers(text):
+    """Extract large numeric values (>=10) from question stem only (before MCQ options).
+    Only large numbers are meaningful physics values; small numbers (1,2,3) appear
+    incidentally everywhere and cause false vetoes."""
+    stem = re.split(r'\s*\([A-Da-d]\)\s*', text)[0]
+    return {n for n in re.findall(r'\d+(?:\.\d+)?', stem) if float(n) >= 10}
 
 
 def make_desc(text, max_chars=130):
