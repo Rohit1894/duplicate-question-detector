@@ -129,7 +129,15 @@ def find_duplicates(questions, threshold=THRESHOLD):
             sort_score = fuzz.token_sort_ratio(ti, tj)
             set_score  = fuzz.token_set_ratio(ti, tj)
             score      = max(sort_score, set_score)
-            # Three acceptance conditions:
+            # "Match List" questions share a long generic stem that inflates scores;
+            # require near-identical text (99%) before flagging them as duplicates
+            is_ml_pair = (MATCH_LIST_RE.search(questions[qi]['text']) is not None and
+                          MATCH_LIST_RE.search(questions[qj]['text']) is not None)
+            if is_ml_pair:
+                if sort_score >= 99 or set_score >= 99:
+                    pairs.append((qi, qj, score, 'Near-Exact'))
+                continue
+            # Three acceptance conditions for normal questions:
             # 1. High token_sort (normal case)
             # 2. Very high token_set (clean near-duplicate caught by set overlap)
             # 3. Both metrics moderately high — targets garbled PDF column text where
@@ -192,6 +200,8 @@ FIGURE_RE = re.compile(
     r'\b(figure|graph|diagram|shown in|see fig|from the following|as shown)\b',
     re.IGNORECASE
 )
+
+MATCH_LIST_RE = re.compile(r'\bmatch\s+(list|column)', re.IGNORECASE)
 
 
 def make_desc(text, max_chars=130):
