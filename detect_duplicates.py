@@ -224,7 +224,7 @@ def extract_stem_numbers(text):
     Only large numbers are meaningful physics values; small numbers (1,2,3) appear
     incidentally everywhere and cause false vetoes."""
     stem = re.split(r'\s*\([A-Da-d]\)\s*', text)[0]
-    return {n for n in re.findall(r'\d+(?:\.\d+)?', stem) if float(n) >= 10}
+    return {n for n in re.findall(r'\d+(?:\.\d+)?', stem) if float(n) >= 2}
 
 
 ASK_RE = re.compile(
