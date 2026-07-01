@@ -144,7 +144,7 @@ def find_duplicates(questions, threshold=THRESHOLD):
             #    word order is scrambled but the right tokens are all present
             both_moderate = sort_score >= (threshold - 13) and set_score >= (threshold - 1)
             if sort_score >= threshold or set_score >= (threshold + 5) or both_moderate:
-                # Veto: same structure but different physics values = different question
+                # Veto 1: same structure but different physics values = different question
                 # e.g. "car at 20 km/h" vs "car at 40 km/h" → skip even if 90%+ similar
                 # Uses subset check (not equality) to tolerate PDF extraction artifacts
                 nums_i = extract_stem_numbers(questions[qi]['text'])
@@ -152,6 +152,12 @@ def find_duplicates(questions, threshold=THRESHOLD):
                 if (nums_i and nums_j and
                         not nums_i.issubset(nums_j) and
                         not nums_j.issubset(nums_i)):
+                    continue
+                # Veto 2: same data but different quantity asked = different question
+                # e.g. "find average speed" vs "find average velocity"
+                ask_i = asked_quantity(questions[qi]['text'])
+                ask_j = asked_quantity(questions[qj]['text'])
+                if ask_i and ask_j and ask_i != ask_j:
                     continue
                 pairs.append((qi, qj, score, 'Near-Exact'))
             checked += 1
@@ -219,6 +225,21 @@ def extract_stem_numbers(text):
     incidentally everywhere and cause false vetoes."""
     stem = re.split(r'\s*\([A-Da-d]\)\s*', text)[0]
     return {n for n in re.findall(r'\d+(?:\.\d+)?', stem) if float(n) >= 10}
+
+
+ASK_RE = re.compile(
+    r'(?:find|calculate|determine|what\s+is|what\s+will\s+be)\s+(?:the\s+)?'
+    r'(average\s+(?:speed|velocity|acceleration)|'
+    r'(?:total\s+)?(?:distance|displacement)|'
+    r'(?:instantaneous\s+)?(?:speed|velocity|acceleration))',
+    re.IGNORECASE
+)
+
+def asked_quantity(text):
+    """Return the physics quantity being asked in the question, if detectable."""
+    stem = re.split(r'\s*\([A-Da-d]\)\s*', text)[0]
+    matches = ASK_RE.findall(stem)
+    return matches[-1].lower().strip() if matches else None
 
 
 def make_desc(text, max_chars=130):
