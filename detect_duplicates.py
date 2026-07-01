@@ -227,11 +227,10 @@ MATCH_LIST_RE = re.compile(r'\bmatch\s+(list|column)', re.IGNORECASE)
 
 
 def extract_stem_numbers(text):
-    """Extract large numeric values (>=10) from question stem only (before MCQ options).
-    Only large numbers are meaningful physics values; small numbers (1,2,3) appear
-    incidentally everywhere and cause false vetoes."""
-    stem = re.split(r'\s*\([A-Da-d]\)\s*', text)[0]
-    return {n for n in re.findall(r'\d+(?:\.\d+)?', stem) if float(n) >= 2}
+    """Extract numeric values (>=2) from full question text including options.
+    Options are included because they are distinctive — same-structure questions with
+    different answers have different option values, making subsets disjoint."""
+    return {n for n in re.findall(r'\d+(?:\.\d+)?', text) if float(n) >= 2}
 
 
 ASK_RE = re.compile(
