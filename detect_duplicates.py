@@ -137,6 +137,13 @@ def find_duplicates(questions, threshold=THRESHOLD):
                 if sort_score >= 99 or set_score >= 99:
                     pairs.append((qi, qj, score, 'Near-Exact'))
                 continue
+            # Figure-based questions share generic stems ("graph shown in figure",
+            # "straight line path") and identical option values boost scores artificially.
+            # Require 95% for both to be figure-based — only near-identical text qualifies.
+            is_fig_pair = (FIGURE_RE.search(questions[qi]['text']) is not None and
+                           FIGURE_RE.search(questions[qj]['text']) is not None)
+            if is_fig_pair and sort_score < 95 and set_score < 95:
+                continue
             # Three acceptance conditions for normal questions:
             # 1. High token_sort (normal case)
             # 2. Very high token_set (clean near-duplicate caught by set overlap)
