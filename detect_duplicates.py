@@ -265,6 +265,13 @@ def is_figure_based(text):
     return bool(FIGURE_RE.search(text))
 
 
+def is_symbolic(text):
+    """Return True if the question has very few specific numbers (<=3 unique values >=2).
+    Symbolic/variable questions (v1, v2, a, n, ...) cannot be differentiated by the
+    numbers veto — flag the group for manual review instead."""
+    return len(extract_stem_numbers(text)) <= 3
+
+
 def fmt_qs(nums):
     qs = [f"Q{n}" for n in nums]
     if len(qs) == 2:
@@ -291,8 +298,11 @@ def write_text(groups, questions, path):
             qs    = g['questions']
             pages = [questions[q]['page'] for q in qs]
             desc  = make_desc(questions[qs[0]]['text'])
-            note  = " [Figure/graph-based: verify manually]" \
-                    if any(is_figure_based(questions[q]['text']) for q in qs) else ""
+            note  = ""
+            if any(is_figure_based(questions[q]['text']) for q in qs):
+                note += " [Figure/graph-based: verify manually]"
+            if any(is_symbolic(questions[q]['text']) for q in qs):
+                note += " [Symbolic/variable-based: verify manually]"
             f.write(f"{i}. {fmt_qs(qs)} ({fmt_pages(pages)}): {desc}.{note}\n")
         f.write(f"\nTotal: {len(groups)} duplicate groups found\n")
     print(f"  Text  -> {path}")
@@ -318,8 +328,12 @@ def write_excel(groups, questions, path):
         qs    = g['questions']
         pages = [questions[q]['page'] for q in qs]
         fill  = PatternFill("solid", fgColor=("EBF2FF" if i % 2 else "FFFFFF"))
-        row   = [i, fmt_qs(qs), fmt_pages(pages), round(g['score']), g['type'],
-                 make_desc(questions[qs[0]]['text'])]
+        desc  = make_desc(questions[qs[0]]['text'])
+        if any(is_figure_based(questions[q]['text']) for q in qs):
+            desc += " [Figure/graph-based: verify manually]"
+        if any(is_symbolic(questions[q]['text']) for q in qs):
+            desc += " [Symbolic/variable-based: verify manually]"
+        row   = [i, fmt_qs(qs), fmt_pages(pages), round(g['score']), g['type'], desc]
         for c, v in enumerate(row, 1):
             cell = ws1.cell(i + 1, c, v)
             cell.fill = fill

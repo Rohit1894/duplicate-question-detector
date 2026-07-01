@@ -7,7 +7,7 @@ from openpyxl.styles import PatternFill, Font, Alignment
 
 from detect_duplicates import (
     extract_pages, parse_questions, find_duplicates,
-    group_duplicates, make_desc, fmt_qs, fmt_pages, is_figure_based
+    group_duplicates, make_desc, fmt_qs, fmt_pages, is_figure_based, is_symbolic
 )
 
 st.set_page_config(
@@ -77,8 +77,11 @@ if uploaded:
                 qs         = g['questions']
                 pages_list = [questions[q]['page'] for q in qs]
                 desc       = make_desc(questions[qs[0]]['text'])
-                note       = " [Figure/graph-based: verify manually]" \
-                             if any(is_figure_based(questions[q]['text']) for q in qs) else ""
+                note       = ""
+                if any(is_figure_based(questions[q]['text']) for q in qs):
+                    note += " [Figure/graph-based: verify manually]"
+                if any(is_symbolic(questions[q]['text']) for q in qs):
+                    note += " [Symbolic/variable-based: verify manually]"
                 lines.append(f"{i}. {fmt_qs(qs)} ({fmt_pages(pages_list)}): {desc}.{note}")
             lines.append(f"\nTotal: {len(groups)} duplicate groups found")
             txt_bytes = "\n".join(lines).encode("utf-8")
@@ -100,9 +103,13 @@ if uploaded:
                 qs         = g['questions']
                 pages_list = [questions[q]['page'] for q in qs]
                 fill       = PatternFill("solid", fgColor=("EBF2FF" if i % 2 else "FFFFFF"))
+                desc       = make_desc(questions[qs[0]]['text'])
+                if any(is_figure_based(questions[q]['text']) for q in qs):
+                    desc += " [Figure/graph-based: verify manually]"
+                if any(is_symbolic(questions[q]['text']) for q in qs):
+                    desc += " [Symbolic/variable-based: verify manually]"
                 row        = [i, fmt_qs(qs), fmt_pages(pages_list),
-                              round(g['score']), g['type'],
-                              make_desc(questions[qs[0]]['text'])]
+                              round(g['score']), g['type'], desc]
                 for c, v in enumerate(row, 1):
                     cell = ws1.cell(i + 1, c, v)
                     cell.fill = fill
@@ -152,13 +159,18 @@ if st.session_state.groups is not None:
     for i, g in enumerate(groups, 1):
         qs         = g['questions']
         pages_list = [questions[q]['page'] for q in qs]
+        desc       = make_desc(questions[qs[0]]['text'])
+        if any(is_figure_based(questions[q]['text']) for q in qs):
+            desc += " [Figure/graph-based: verify manually]"
+        if any(is_symbolic(questions[q]['text']) for q in qs):
+            desc += " [Symbolic/variable-based: verify manually]"
         rows.append({
             "#":            i,
             "Questions":    fmt_qs(qs),
             "Pages":        fmt_pages(pages_list),
             "Similarity %": round(g['score']),
             "Type":         g['type'],
-            "Description":  make_desc(questions[qs[0]]['text']),
+            "Description":  desc,
         })
 
     df = pd.DataFrame(rows)
